@@ -1,0 +1,47 @@
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: service:expressvpn
+    depends_on:
+      expressvpn:
+        condition: service_healthy # Ensures this dependent service waits until the expressvpn service reports healthy. Prevents traffic before VPN is connected.
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8060
+    volumes:
+      - ./config:/config
+      - /vol1/1000/Downloads:/downloads
+  expressvpn:
+    image: frankli/expressvpn:latest
+    container_name: expressvpn
+    restart: unless-stopped
+    environment:
+      - EXPRESSVPN_ACTIVATION_CODE={{you own activation code}} # ExpressVPN activation code: https://www.expressvpn.com/support/troubleshooting/find-activation-code/
+      - CONNECT_LOCATION=smart
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    tty: true
+    privileged: true
+    networks:
+      - vpn_network
+
+  qbt-proxy:
+    image: alpine/socat
+    container_name: qbt-proxy
+    restart: unless-stopped
+    ports:
+      - "8060:8060"
+    networks:
+      - vpn_network
+    command: tcp-listen:8060,fork,reuseaddr tcp-connect:expressvpn:8060
+    depends_on:
+      - expressvpn
+      - qbittorrent
+
+networks:
+  vpn_network:
+    driver: bridge
