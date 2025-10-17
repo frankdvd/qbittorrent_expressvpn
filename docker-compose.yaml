@@ -15,15 +15,7 @@ services:
     networks:
       - vpn_network
     healthcheck:
-      test: >
-        sh -c '
-          EV_BIN="/opt/expressvpn/bin/expressvpnctl";
-          if "$EV_BIN" status 2>/dev/null | grep -q "Connected"; then
-            wget -q --spider https://www.google.com/ >/dev/null 2>&1
-          else
-            exit 1
-          fi
-        '
+      test: /opt/expressvpn/bin/expressvpnctl status | grep -q "Connected"
       interval: 30s
       timeout: 10s
       retries: 20
@@ -74,3 +66,4 @@ services:
 networks:
   vpn_network:
     driver: bridge
+
