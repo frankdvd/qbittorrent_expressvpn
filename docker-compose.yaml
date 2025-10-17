@@ -1,18 +1,4 @@
 services:
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: qbittorrent
-    network_mode: service:expressvpn
-    depends_on:
-      expressvpn:
-        condition: service_healthy # Ensures this dependent service waits until the expressvpn service reports healthy. Prevents traffic before VPN is connected.
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - WEBUI_PORT=8060
-    volumes:
-      - ./config:/config
-      - /vol1/1000/Downloads:/downloads
   expressvpn:
     image: frankli/expressvpn:latest
     container_name: expressvpn
@@ -28,19 +14,62 @@ services:
     privileged: true
     networks:
       - vpn_network
+    healthcheck:
+      test: >
+        sh -c '
+          EV_BIN="/opt/expressvpn/bin/expressvpnctl";
+          if "$EV_BIN" status 2>/dev/null | grep -q "Connected"; then
+            wget -q --spider https://www.google.com/ >/dev/null 2>&1
+          else
+            exit 1
+          fi
+        '
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:expressvpn"
+    depends_on:
+      expressvpn:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8060
+    volumes:
+      - ./config:/config
+      - /vol1/1000/Downloads:/downloads
+      - ./vuetorrent:/vuetorrent
+    healthcheck:
+      test: >
+        sh -c '
+          nc -z localhost 8060 ||
+          wget -q --spider http://localhost:8060/ || exit 1
+        '
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
 
   qbt-proxy:
     image: alpine/socat
     container_name: qbt-proxy
     restart: unless-stopped
-    ports:
-      - "8060:8060"
+    depends_on:
+      expressvpn:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_healthy
     networks:
       - vpn_network
+    ports:
+      - "8060:8060"
     command: tcp-listen:8060,fork,reuseaddr tcp-connect:expressvpn:8060
-    depends_on:
-      - expressvpn
-      - qbittorrent
 
 networks:
   vpn_network:
