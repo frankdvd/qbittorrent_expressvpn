@@ -2,7 +2,7 @@ services:
   expressvpn:
     image: frankli/expressvpn:latest
     container_name: expressvpn
-    restart: unless-stopped
+    restart: always
     environment:
       - EXPRESSVPN_ACTIVATION_CODE={{you own activation code}} # ExpressVPN activation code: https://www.expressvpn.com/support/troubleshooting/find-activation-code/
       - CONNECT_LOCATION=smart
@@ -28,7 +28,7 @@ services:
     depends_on:
       expressvpn:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
     environment:
       - PUID=1000
       - PGID=1000
@@ -51,7 +51,7 @@ services:
   qbt-proxy:
     image: alpine/socat
     container_name: qbt-proxy
-    restart: unless-stopped
+    restart: always
     depends_on:
       expressvpn:
         condition: service_healthy
@@ -66,4 +66,5 @@ services:
 networks:
   vpn_network:
     driver: bridge
+
 
