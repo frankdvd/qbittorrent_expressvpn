@@ -40,7 +40,6 @@ services:
     healthcheck:
       test: >
         sh -c '
-          nc -z localhost 8060 ||
           wget -q --spider http://localhost:8060/ || exit 1
         '
       interval: 30s
